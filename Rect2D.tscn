@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" path="res://Rect2D.gd" id="1_4ux17"]
 [ext_resource type="Texture2D" uid="uid://bhokx7sb367p8" path="res://icon.svg" id="2_5qyro"]
-[ext_resource type="Shader" path="res://Rect2D.gdshader" id="2_obu4j"]
+[ext_resource type="Shader" path="res://Shader/Rect2D.gdshader" id="2_pfk8g"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_6ce82"]
-shader = ExtResource("2_obu4j")
+shader = ExtResource("2_pfk8g")
 shader_parameter/hue_shift = 0.194
 shader_parameter/tint = Vector4(1, 1, 1, 1)
 
