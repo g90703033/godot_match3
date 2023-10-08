@@ -7,10 +7,17 @@ extends Node2D
 
 @export var s_cube : PackedScene
 
+enum e_control_mode{
+	browse,
+	selected
+}
+
 var data_array
 var cube_array
 var inited:bool =false
 var prev_selected
+var selected = false
+var control_mode = e_control_mode.browse
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -23,7 +30,41 @@ func _ready():
 func _input(event):
 	if not inited:
 		return	
+	
+	if control_mode == e_control_mode.browse:
+		update_mode_browse()
+	elif control_mode == e_control_mode.selected:
+		update_mode_selected()
+			
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.is_pressed():
+				print("mouse left pressed")
+				switch_control_mode(e_control_mode.selected)
+				
+			elif event.is_released():
+				print("mouse left release")
+				switch_control_mode(e_control_mode.browse)
+				
+			
 		
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_T:
+			random_2dintarray(data_array, get_range(gridRangeX), get_range(gridRangeY), [1,2,4])
+			update_cube_array_from_data(data_array, gridRangeX, gridRangeY, Vector2(0,0))
+
+func switch_control_mode(new_mode):
+	if control_mode == new_mode:
+		return
+	
+	if control_mode == e_control_mode.browse:
+		if prev_selected != null:
+			cube_array[prev_selected.x][prev_selected.y].on_diselected()
+			prev_selected = null
+	
+	control_mode = new_mode
+
+func update_mode_browse():
 	var result = get_grid_position(get_global_mouse_position(), Vector2(0, 0))
 	
 	if in_range(result):
@@ -39,19 +80,9 @@ func _input(event):
 		if prev_selected != null:
 			cube_array[prev_selected.x][prev_selected.y].on_diselected()
 			prev_selected = null
-			
-	if event is InputEventMouseButton:
-		if event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
-			var mouse_pos = get_global_mouse_position()
-			print("mouse left pressed")
-			
-		
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_T:
-			random_2dintarray(data_array, get_range(gridRangeX), get_range(gridRangeY), [1,2,4])
-			update_cube_array_from_data(data_array, gridRangeX, gridRangeY, Vector2(0,0))
 
-
+func update_mode_selected():
+	pass
 
 func create_random_2dintarray(x:int, y:int,set)->Array:
 	var result = []
@@ -114,6 +145,9 @@ func get_random(set:Array):
 	
 static func get_range(range:Vector2):
 	return range.y - range.x + 1
+
+func get_world_position(grid_position:Vector2, init:Vector2)->Vector2:
+	return (grid_position - Vector2(abs(gridRangeX.x), abs(gridRangeY.x))) * unit + init
 
 func get_grid_position(world_position:Vector2, init:Vector2)->Vector2:
 	var re_centered = world_position - init
