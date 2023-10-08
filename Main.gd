@@ -15,9 +15,15 @@ enum e_control_mode{
 var data_array
 var cube_array
 var inited:bool =false
+
+var control_mode = e_control_mode.browse
+# control mode : browse
 var prev_selected
 var selected = false
-var control_mode = e_control_mode.browse
+# control mode : selected
+var selected_cube
+var origin_grid_position
+var prev_selected_position:Vector2
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -31,11 +37,6 @@ func _input(event):
 	if not inited:
 		return	
 	
-	if control_mode == e_control_mode.browse:
-		update_mode_browse()
-	elif control_mode == e_control_mode.selected:
-		update_mode_selected()
-			
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.is_pressed():
@@ -45,9 +46,13 @@ func _input(event):
 			elif event.is_released():
 				print("mouse left release")
 				switch_control_mode(e_control_mode.browse)
-				
+	
+	
+	if control_mode == e_control_mode.browse:
+		update_mode_browse()
+	elif control_mode == e_control_mode.selected:
+		update_mode_selected()
 			
-		
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_T:
 			random_2dintarray(data_array, get_range(gridRangeX), get_range(gridRangeY), [1,2,4])
@@ -57,12 +62,24 @@ func switch_control_mode(new_mode):
 	if control_mode == new_mode:
 		return
 	
-	if control_mode == e_control_mode.browse:
+	if new_mode == e_control_mode.browse:
 		if prev_selected != null:
 			cube_array[prev_selected.x][prev_selected.y].on_diselected()
 			prev_selected = null
+			if control_mode == e_control_mode.selected:
+				selected_cube.position = get_world_position(origin_grid_position, Vector2(0,0))
+	elif new_mode == e_control_mode.selected:	
+		var result = get_grid_position(get_global_mouse_position(), Vector2(0, 0))
+		
+		if not in_range(result):
+			return -1
+		prev_selected_position = get_global_mouse_position()
+		selected_cube = cube_array[result.x][result.y]
+		origin_grid_position = result
 	
 	control_mode = new_mode
+	
+	return 0
 
 func update_mode_browse():
 	var result = get_grid_position(get_global_mouse_position(), Vector2(0, 0))
@@ -82,7 +99,10 @@ func update_mode_browse():
 			prev_selected = null
 
 func update_mode_selected():
-	pass
+	var cur_mouse_position = get_global_mouse_position()
+	var delta = cur_mouse_position - prev_selected_position
+	prev_selected_position = cur_mouse_position
+	selected_cube.translate(delta)
 
 func create_random_2dintarray(x:int, y:int,set)->Array:
 	var result = []
