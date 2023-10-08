@@ -12,6 +12,12 @@ enum e_control_mode{
 	selected
 }
 
+enum e_move_axis{
+	none,
+	x,
+	y
+}
+
 var data_array
 var cube_array
 var inited:bool =false
@@ -23,11 +29,13 @@ var selected = false
 # control mode : selected
 var selected_cube
 var origin_grid_position
+var origin_world_position
 var prev_selected_position:Vector2
 
 var prev_swap_cube
 var next_swap_cube
 var prev_swap_grid_position
+var prev_swap_axis = e_move_axis.none
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
@@ -71,8 +79,10 @@ func switch_control_mode(new_mode):
 			cube_array[prev_selected.x][prev_selected.y].on_diselected()
 			prev_selected = null
 			if control_mode == e_control_mode.selected:
-				selected_cube.position = get_world_position(origin_grid_position, Vector2(0,0))
-				prev_swap_cube.position = get_world_position(prev_swap_grid_position, Vector2(0,0))
+#				selected_cube.position = get_world_position(origin_grid_position, Vector2(0,0))
+#				prev_swap_cube.position = get_world_position(prev_swap_grid_position, Vector2(0,0))
+				selected_cube.move_to(get_world_position(origin_grid_position, Vector2(0,0)), 0.2)
+				prev_swap_cube.move_to(get_world_position(prev_swap_grid_position, Vector2(0,0)), 0.2)
 	elif new_mode == e_control_mode.selected:	
 		var result = get_grid_position(get_global_mouse_position(), Vector2(0, 0))
 		
@@ -81,6 +91,7 @@ func switch_control_mode(new_mode):
 		prev_selected_position = get_global_mouse_position()
 		selected_cube = cube_array[result.x][result.y]
 		origin_grid_position = result
+		origin_world_position = get_world_position(result, Vector2(0,0))
 	
 	control_mode = new_mode
 	
@@ -105,31 +116,73 @@ func update_mode_browse():
 
 func update_mode_selected():
 	var cur_mouse_position = get_global_mouse_position()
-	var delta = cur_mouse_position - prev_selected_position
-	var direction = cur_mouse_position - get_world_position(origin_grid_position, Vector2(0,0))
+#	var delta = cur_mouse_position - prev_selected_position
+	var direction = cur_mouse_position - origin_world_position
 	var grid_direction = Vector2(0, 0)
+	var new_axis = e_move_axis.none
+	
+	#calculate new delta with clamp
+	direction = vec_clamp_by_length(direction, unit)
+	var delta = origin_world_position + direction - selected_cube.position	
+	
+	# determine to move in which direction
 	if abs(direction.x) > abs(direction.y):
 		if direction.x > 0:
 			grid_direction.x = 1
 		elif direction.x < 0:
 			grid_direction.x = -1
+		delta.y = 0
+		new_axis = e_move_axis.x
 	else:
 		if direction.y > 0:
 			grid_direction.y = 1
 		elif direction.y < 0:
 			grid_direction.y = -1
+		delta.x = 0
+		new_axis = e_move_axis.y
 	
+	# when change to another axis move, adjust back the shift of previous axis
+	var switch_new_axis = is_switch_axis(new_axis)
+	
+	if switch_new_axis:
+		var origin_position = get_world_position(origin_grid_position, Vector2(0, 0))
+		var offset = selected_cube.position - origin_position
+			
+		if prev_swap_axis == e_move_axis.x:
+			selected_cube.translate(Vector2(-offset.x, 0))
+		if prev_swap_axis == e_move_axis.y:
+			selected_cube.translate(Vector2(0, -offset.y))
+		
+	prev_swap_axis = new_axis
+	
+	# translate selected cube by delta of mouse position changing
 	prev_selected_position = cur_mouse_position
 	selected_cube.translate(delta)
 	var next_swap_grid_position = origin_grid_position + grid_direction
 	var next_swap_cube = cube_array[next_swap_grid_position.x][next_swap_grid_position.y]
 	
+	# when change to another direction, reset previous one back to origin position
 	if prev_swap_cube != null && next_swap_grid_position != prev_swap_grid_position:
-		prev_swap_cube.position = get_world_position(prev_swap_grid_position, Vector2(0,0))
+		prev_swap_cube.move_to(get_world_position(prev_swap_grid_position, Vector2(0,0)), 0.2)
 	
 	next_swap_cube.translate(-delta)
 	prev_swap_cube = next_swap_cube
 	prev_swap_grid_position = next_swap_grid_position
+
+func vec_clamp_by_length(input:Vector2, length:float)->Vector2:
+	if input.length() > length:
+		return input.normalized() * length
+	return input
+
+func is_switch_axis(new_axis: e_move_axis):
+	var result = false
+	
+	if prev_swap_axis == e_move_axis.x && new_axis == e_move_axis.y:
+		result = true
+	if prev_swap_axis == e_move_axis.y && new_axis == e_move_axis.x:
+		result = true
+		
+	return result
 
 func create_random_2dintarray(x:int, y:int,set)->Array:
 	var result = []
