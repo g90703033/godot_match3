@@ -25,6 +25,10 @@ var selected_cube
 var origin_grid_position
 var prev_selected_position:Vector2
 
+var prev_swap_cube
+var next_swap_cube
+var prev_swap_grid_position
+
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	data_array = create_random_2dintarray(get_range(gridRangeX), get_range(gridRangeY), [1,2,4])#gridRangeX.y, gridRangeY.y)
@@ -68,6 +72,7 @@ func switch_control_mode(new_mode):
 			prev_selected = null
 			if control_mode == e_control_mode.selected:
 				selected_cube.position = get_world_position(origin_grid_position, Vector2(0,0))
+				prev_swap_cube.position = get_world_position(prev_swap_grid_position, Vector2(0,0))
 	elif new_mode == e_control_mode.selected:	
 		var result = get_grid_position(get_global_mouse_position(), Vector2(0, 0))
 		
@@ -101,8 +106,30 @@ func update_mode_browse():
 func update_mode_selected():
 	var cur_mouse_position = get_global_mouse_position()
 	var delta = cur_mouse_position - prev_selected_position
+	var direction = cur_mouse_position - get_world_position(origin_grid_position, Vector2(0,0))
+	var grid_direction = Vector2(0, 0)
+	if abs(direction.x) > abs(direction.y):
+		if direction.x > 0:
+			grid_direction.x = 1
+		elif direction.x < 0:
+			grid_direction.x = -1
+	else:
+		if direction.y > 0:
+			grid_direction.y = 1
+		elif direction.y < 0:
+			grid_direction.y = -1
+	
 	prev_selected_position = cur_mouse_position
 	selected_cube.translate(delta)
+	var next_swap_grid_position = origin_grid_position + grid_direction
+	var next_swap_cube = cube_array[next_swap_grid_position.x][next_swap_grid_position.y]
+	
+	if prev_swap_cube != null && next_swap_grid_position != prev_swap_grid_position:
+		prev_swap_cube.position = get_world_position(prev_swap_grid_position, Vector2(0,0))
+	
+	next_swap_cube.translate(-delta)
+	prev_swap_cube = next_swap_cube
+	prev_swap_grid_position = next_swap_grid_position
 
 func create_random_2dintarray(x:int, y:int,set)->Array:
 	var result = []
