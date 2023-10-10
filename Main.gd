@@ -71,6 +71,7 @@ func _input(event):
 			update_cube_array_from_data(data_array, gridRangeX, gridRangeY, Vector2(0,0))
 
 func switch_control_mode(new_mode):
+
 	if control_mode == new_mode:
 		return
 	
@@ -78,13 +79,21 @@ func switch_control_mode(new_mode):
 		if prev_selected != null:
 			cube_array[prev_selected.x][prev_selected.y].on_diselected()
 			prev_selected = null
+			
+			# check swap success or not
 			if control_mode == e_control_mode.selected:
-#				selected_cube.position = get_world_position(origin_grid_position, Vector2(0,0))
-#				prev_swap_cube.position = get_world_position(prev_swap_grid_position, Vector2(0,0))
+				var result = get_grid_position(get_global_mouse_position(), Vector2(0, 0))
+
+				#if result == origin_grid_position:
 				selected_cube.move_to(get_world_position(origin_grid_position, Vector2(0,0)), 0.2)
 				prev_swap_cube.move_to(get_world_position(prev_swap_grid_position, Vector2(0,0)), 0.2)
+#				else:
+#					selected_cube.move_to(get_world_position(prev_swap_grid_position, Vector2(0,0)), 0.2)
+#					prev_swap_cube.move_to(get_world_position(origin_grid_position, Vector2(0,0)), 0.2)
+				#[TODO]: swap data	
 	elif new_mode == e_control_mode.selected:	
 		var result = get_grid_position(get_global_mouse_position(), Vector2(0, 0))
+		prev_swap_cube = null
 		
 		if not in_range(result):
 			return -1
@@ -115,8 +124,9 @@ func update_mode_browse():
 			prev_selected = null
 
 func update_mode_selected():
-	var cur_mouse_position = get_global_mouse_position()
-#	var delta = cur_mouse_position - prev_selected_position
+	
+	
+	var cur_mouse_position = world_position_in_range(get_global_mouse_position())
 	var direction = cur_mouse_position - origin_world_position
 	var grid_direction = Vector2(0, 0)
 	var new_axis = e_move_axis.none
@@ -131,6 +141,7 @@ func update_mode_selected():
 			grid_direction.x = 1
 		elif direction.x < 0:
 			grid_direction.x = -1
+			
 		delta.y = 0
 		new_axis = e_move_axis.x
 	else:
@@ -138,8 +149,12 @@ func update_mode_selected():
 			grid_direction.y = 1
 		elif direction.y < 0:
 			grid_direction.y = -1
+			
 		delta.x = 0
 		new_axis = e_move_axis.y
+	
+	var next_swap_grid_position = origin_grid_position + grid_direction
+	var next_swap_cube = cube_array[next_swap_grid_position.x][next_swap_grid_position.y]
 	
 	# when change to another axis move, adjust back the shift of previous axis
 	var switch_new_axis = is_switch_axis(new_axis)
@@ -155,11 +170,11 @@ func update_mode_selected():
 		
 	prev_swap_axis = new_axis
 	
+	###### swap back
+	
 	# translate selected cube by delta of mouse position changing
 	prev_selected_position = cur_mouse_position
 	selected_cube.translate(delta)
-	var next_swap_grid_position = origin_grid_position + grid_direction
-	var next_swap_cube = cube_array[next_swap_grid_position.x][next_swap_grid_position.y]
 	
 	# when change to another direction, reset previous one back to origin position
 	if prev_swap_cube != null && next_swap_grid_position != prev_swap_grid_position:
@@ -278,3 +293,8 @@ func grid_length_y()->int:
 		return abs(gridRangeY.x) + gridRangeY.y + 1
 	else:
 		return gridRangeY.y - gridRangeY.x + 1
+
+func world_position_in_range(world_position:Vector2):
+	world_position.x = clamp(world_position.x , unit * gridRangeX.x, unit * gridRangeX.y)
+	world_position.y = clamp(world_position.y , unit * gridRangeY.x, unit * gridRangeY.y)
+	return world_position
