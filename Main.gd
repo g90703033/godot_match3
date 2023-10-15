@@ -19,6 +19,7 @@ enum e_move_axis{
 }
 
 var data_array
+var match_data_array
 var cube_array
 var inited:bool =false
 
@@ -40,6 +41,7 @@ var prev_swap_axis = e_move_axis.none
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	data_array = create_random_array2d_data(get_range(gridRangeX), get_range(gridRangeY), [1,2,4])#gridRangeX.y, gridRangeY.y)
+	match_data_array = create_array2d(get_range(gridRangeX), get_range(gridRangeY), 0)
 	cube_array = create_cube_array_from_data(data_array, gridRangeX, gridRangeY, Vector2(0,0))
 	inited = true
 
@@ -49,14 +51,17 @@ func _input(event):
 	if not inited:
 		return	
 	
+	if event is InputEventKey:
+		if event.keycode == KEY_M:
+			if event.is_pressed():
+				find_all_matches(3)
+	
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.is_pressed():
-				print("mouse left pressed")
 				switch_control_mode(e_control_mode.selected)
 				
 			elif event.is_released():
-				print("mouse left release")
 				switch_control_mode(e_control_mode.browse)
 	
 	
@@ -111,6 +116,37 @@ func switch_control_mode(new_mode):
 	control_mode = new_mode
 	
 	return 0
+
+func find_all_matches(num):
+	fill_array2d(match_data_array, grid_length_x(), grid_length_y())
+	#find horizontal (3, 1)array match
+	for _y in range(0, grid_length_y()):
+		
+		for _x in range(0, grid_length_x() - num + 1):
+			var link = true
+			for i in range(0, num-1):
+				link = (link and (data_array[_x+i][_y] == data_array[_x+i+1][_y]))
+				
+			if link:
+				for i in range(0, num):
+					match_data_array[_x+i][_y] = 1
+		
+	#find horizontal (1, 3)array match
+	
+	for _x in range(0, grid_length_x()):
+		for _y in range(0, grid_length_y()-num + 1):
+			var link = true
+			for i in range(0, num-1):
+				link = (link and (data_array[_x][_y+i] == data_array[_x][_y+i+1]))
+			if link:
+				for i in range(0, num):
+					match_data_array[_x][_y+i] = 1
+	
+	#destroy all matches
+	for _x in range(0, grid_length_x()):
+		for _y in range(0, grid_length_y()):
+			if match_data_array[_x][_y] == 1:
+				cube_array[_x][_y].queue_free()
 
 func swap_data(n1, n2):
 	var temp = cube_array[n1.x][n1.y]
@@ -222,6 +258,26 @@ func create_random_array2d_data(x:int, y:int,set)->Array:
 	
 	return result
 
+func create_array2d(x:int, y:int, value = 0):
+	var result = []
+	
+	for _x in range(0, x):
+		result.append([])
+		for _y in range(0, y):
+			result[_x].append(value)
+	
+	return result
+
+func fill_array2d(result, x:int, y:int, value = 0):
+
+	for _x in range(0, x):
+		for _y in range(0, y):
+			result[_x][_y] = value
+	
+	return result
+
+
+
 func random_2dintarray(array2d, x:int, y:int, set):
 	for _x in range(0, x):
 		for _y in range(0, y):
@@ -271,7 +327,7 @@ func get_random(set:Array):
 	var index = randi() % set.size()
 	return set[index]
 	
-static func get_range(range:Vector2):
+func get_range(range:Vector2):
 	return range.y - range.x + 1
 
 func get_world_position(grid_position:Vector2, init:Vector2)->Vector2:

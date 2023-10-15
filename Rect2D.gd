@@ -34,7 +34,7 @@ func change_color(cubeType:CubeType):
 	#on_selected()
 	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta):
+func _process(_delta):
 	#translate(Vector2(100,0)*delta)
 	pass
 
@@ -48,10 +48,7 @@ func move(delta: Vector2)->void:
 	translate(delta)
 
 func on_selected():
-	print("on selected " + name)
 	instance_material.set("shader_param/tint", Vector4(2, 2, 2, 1))
 	
-func on_diselected():
-	
-	print("on diselected " + name)
+func on_diselected():	
 	instance_material.set("shader_param/tint", Vector4(1, 1, 1, 1))
