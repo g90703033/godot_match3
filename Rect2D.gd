@@ -8,13 +8,15 @@ enum CubeType {
 
 @export var cubeType : CubeType = CubeType.Red
 var instance_material
-var tween
+var move_tween
+var erase_tween
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	instance_material = $Sprite2D.get_material().duplicate()
 	$Sprite2D.set_material(instance_material)
-	tween = create_tween()
+	move_tween = create_tween()
+	erase_tween = create_tween()
 
 func change_color_by_int(value:int):
 	match value:
@@ -39,10 +41,15 @@ func _process(_delta):
 	pass
 
 func move_to(world_position: Vector2, duration: float)->void:
-	if tween:
-		tween.kill()
-	tween = create_tween()
-	tween.tween_property(self, "position", world_position, duration)
+	if move_tween:
+		move_tween.kill()
+	move_tween = create_tween()
+	move_tween.tween_property(self, "position", world_position, duration)
+
+func erase(duration: float)->void:
+	erase_tween = create_tween()
+	erase_tween.tween_property(self, "scale", Vector2(), duration)
+	erase_tween.tween_callback(queue_free)
 
 func move(delta: Vector2)->void:
 	translate(delta)

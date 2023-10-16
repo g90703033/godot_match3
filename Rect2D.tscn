@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://yei67arj0s2m"]
+[gd_scene load_steps=6 format=3 uid="uid://yei67arj0s2m"]
 
 [ext_resource type="Script" path="res://Rect2D.gd" id="1_4ux17"]
 [ext_resource type="Texture2D" uid="uid://bhokx7sb367p8" path="res://icon.svg" id="2_5qyro"]
@@ -9,9 +9,14 @@ shader = ExtResource("2_pfk8g")
 shader_parameter/hue_shift = 0.194
 shader_parameter/tint = Vector4(1, 1, 1, 1)
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_j1v4u"]
+
 [node name="Node2D" type="Node2D"]
 script = ExtResource("1_4ux17")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 material = SubResource("ShaderMaterial_6ce82")
 texture = ExtResource("2_5qyro")
+
+[node name="Sprite2D" type="Sprite2D" parent="Sprite2D"]
+material = SubResource("ShaderMaterial_j1v4u")

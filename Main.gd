@@ -7,9 +7,14 @@ extends Node2D
 
 @export var s_cube : PackedScene
 
+class cube_data:
+	var type:int
+	var id:int
+
 enum e_control_mode{
 	browse,
-	selected
+	selected,
+	none
 }
 
 enum e_move_axis{
@@ -18,11 +23,20 @@ enum e_move_axis{
 	y
 }
 
+enum e_state{
+	stable,
+	select,
+	erase,
+	fill,
+	none
+}
+
 var data_array
 var match_data_array
 var cube_array
 var inited:bool =false
 
+var state = e_state.stable
 var control_mode = e_control_mode.browse
 # control mode : browse
 var prev_selected
@@ -51,29 +65,71 @@ func _input(event):
 	if not inited:
 		return	
 	
-	if event is InputEventKey:
-		if event.keycode == KEY_M:
-			if event.is_pressed():
-				find_all_matches(3)
+	# update of control mode	
+	if control_mode == e_control_mode.browse:
+		update_mode_browse()
+	elif control_mode == e_control_mode.selected:
+		update_mode_selected() 
+	
+	# state change after 
 	
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.is_pressed():
-				switch_control_mode(e_control_mode.selected)
+				switch_state(e_state.select)
+				#switch_control_mode(e_control_mode.selected)
 				
 			elif event.is_released():
-				switch_control_mode(e_control_mode.browse)
+				switch_state(e_state.erase)
+				#switch_control_mode(e_control_mode.browse)
 	
+
+	# test keyboard trigger
 	
-	if control_mode == e_control_mode.browse:
-		update_mode_browse()
-	elif control_mode == e_control_mode.selected:
-		update_mode_selected()
-			
+	if event is InputEventKey:
+		if event.keycode == KEY_M:
+			if event.is_pressed():
+				erase_all_matches(3, 0.3, on_erase_matches_finished)
+	
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_T:
 			random_2dintarray(data_array, get_range(gridRangeX), get_range(gridRangeY), [1,2,4])
 			update_cube_array_from_data(data_array, gridRangeX, gridRangeY, Vector2(0,0))
+
+func switch_state(new_state):
+	if state == new_state:
+		return
+	
+	if state == e_state.fill && new_state == e_state.select:
+		set_state(new_state)
+	
+	if state == e_state.stable && new_state == e_state.select:
+		set_state(new_state)
+	
+	if state == e_state.select && new_state == e_state.erase:
+		set_state(new_state)
+	
+	if state == e_state.erase && new_state == e_state.fill:
+		set_state(new_state)	
+
+
+func set_state(new_state):
+	match new_state:
+		e_state.stable:
+			switch_control_mode(e_control_mode.browse)
+		e_state.select:
+			switch_control_mode(e_control_mode.selected)
+		e_state.erase:
+			switch_control_mode(e_control_mode.none)
+			erase_all_matches(3, 0.3, on_erase_matches_finished)
+		e_state.fill:
+			switch_control_mode(e_control_mode.none)
+		e_state.none:
+			switch_control_mode(e_control_mode.none)
+	state = new_state
+
+func on_erase_matches_finished():
+	print("on_erase")
 
 func switch_control_mode(new_mode):
 
@@ -82,7 +138,7 @@ func switch_control_mode(new_mode):
 	
 	var prev_mode = control_mode 
 	
-	if new_mode == e_control_mode.browse:
+	if new_mode == e_control_mode.browse or new_mode == e_control_mode.none:
 		if prev_selected != null:
 			cube_array[prev_selected.x][prev_selected.y].on_diselected()
 			prev_selected = null
@@ -100,7 +156,7 @@ func switch_control_mode(new_mode):
 					selected_cube.move_to(get_world_position(prev_swap_grid_position, Vector2(0,0)), 0.2)
 					prev_swap_cube.move_to(get_world_position(origin_grid_position, Vector2(0,0)), 0.2)
 					swap_data(origin_grid_position, prev_swap_grid_position)
-				#[TODO]: swap data	
+
 	elif new_mode == e_control_mode.selected:	
 		var result = get_grid_position(get_global_mouse_position(), Vector2(0, 0))
 		prev_swap_cube = null
@@ -117,7 +173,7 @@ func switch_control_mode(new_mode):
 	
 	return 0
 
-func find_all_matches(num):
+func erase_all_matches(num:int, duration:float, function:Callable)->void:
 	fill_array2d(match_data_array, grid_length_x(), grid_length_y())
 	#find horizontal (3, 1)array match
 	for _y in range(0, grid_length_y()):
@@ -146,8 +202,10 @@ func find_all_matches(num):
 	for _x in range(0, grid_length_x()):
 		for _y in range(0, grid_length_y()):
 			if match_data_array[_x][_y] == 1:
-				cube_array[_x][_y].queue_free()
-
+				cube_array[_x][_y].erase(duration) #queue_free()
+	await duration
+	function.call()
+	
 func swap_data(n1, n2):
 	var temp = cube_array[n1.x][n1.y]
 	cube_array[n1.x][n1.y] = cube_array[n2.x][n2.y]
