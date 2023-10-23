@@ -4,6 +4,7 @@ extends Node2D
 @export var gridRangeX = Vector2(-5, 5)
 @export var gridRangeY = Vector2(-5, 5)
 @export var speed = 150
+@export var erase_duration:float = 0.3
 
 @export var s_cube : PackedScene
 
@@ -32,6 +33,7 @@ enum e_state{
 }
 
 var data_array
+var id_array
 var match_data_array
 var cube_array
 var inited:bool =false
@@ -54,6 +56,7 @@ var prev_swap_axis = e_move_axis.none
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
+	id_array = create_id_array2d(get_range(gridRangeX), get_range(gridRangeY))
 	data_array = create_random_array2d_data(get_range(gridRangeX), get_range(gridRangeY), [1,2,4])#gridRangeX.y, gridRangeY.y)
 	match_data_array = create_array2d(get_range(gridRangeX), get_range(gridRangeY), 0)
 	cube_array = create_cube_array_from_data(data_array, gridRangeX, gridRangeY, Vector2(0,0))
@@ -89,7 +92,7 @@ func _input(event):
 	if event is InputEventKey:
 		if event.keycode == KEY_M:
 			if event.is_pressed():
-				erase_all_matches(3, 0.3, on_erase_matches_finished)
+				erase_all_matches(3, erase_duration, on_erase_matches_finished)
 	
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_T:
@@ -121,7 +124,8 @@ func set_state(new_state):
 			switch_control_mode(e_control_mode.selected)
 		e_state.erase:
 			switch_control_mode(e_control_mode.none)
-			erase_all_matches(3, 0.3, on_erase_matches_finished)
+			erase_all_matches(3, erase_duration, on_erase_matches_finished)
+			
 		e_state.fill:
 			switch_control_mode(e_control_mode.none)
 		e_state.none:
@@ -129,8 +133,20 @@ func set_state(new_state):
 	state = new_state
 
 func on_erase_matches_finished():
-	print("on_erase")
-
+	print("on_erase finished")
+	var new_id_array = to_fill_state_array(id_array, get_range(gridRangeX), get_range(gridRangeY))
+	for _x in range(0, get_range(gridRangeX)):
+		for _y in range(get_range(gridRangeY) -1, -1, -1):
+			if id_array[_x][_y] == -1:
+				continue
+			for __y in range(get_range(gridRangeY) -1, -1, -1):
+				if id_array[_x][_y] == new_id_array[_x][__y]:
+					cube_array[_x][_y].move_to(
+						get_world_position(Vector2(_x, __y), Vector2(0,0))
+						, erase_duration)
+	# cube array not match state yet
+			
+			
 func switch_control_mode(new_mode):
 
 	if control_mode == new_mode:
@@ -173,8 +189,11 @@ func switch_control_mode(new_mode):
 	
 	return 0
 
-func erase_all_matches(num:int, duration:float, function:Callable)->void:
+func erase_all_matches(num:int, duration:float, function:Callable)->bool:
+	var has_match:bool = false
+	
 	fill_array2d(match_data_array, grid_length_x(), grid_length_y())
+	
 	#find horizontal (3, 1)array match
 	for _y in range(0, grid_length_y()):
 		
@@ -186,6 +205,7 @@ func erase_all_matches(num:int, duration:float, function:Callable)->void:
 			if link:
 				for i in range(0, num):
 					match_data_array[_x+i][_y] = 1
+					has_match = true
 		
 	#find horizontal (1, 3)array match
 	
@@ -197,14 +217,20 @@ func erase_all_matches(num:int, duration:float, function:Callable)->void:
 			if link:
 				for i in range(0, num):
 					match_data_array[_x][_y+i] = 1
+					has_match = true
 	
 	#destroy all matches
 	for _x in range(0, grid_length_x()):
 		for _y in range(0, grid_length_y()):
 			if match_data_array[_x][_y] == 1:
 				cube_array[_x][_y].erase(duration) #queue_free()
-	await duration
-	function.call()
+				id_array[_x][_y] = -1
+	
+	if has_match: 
+		await duration
+		function.call()
+	
+	return has_match
 	
 func swap_data(n1, n2):
 	var temp = cube_array[n1.x][n1.y]
@@ -306,6 +332,19 @@ func is_switch_axis(new_axis: e_move_axis):
 		
 	return result
 
+func create_id_array2d(x:int, y:int)->Array:
+	return create_array2d_data_by_func(x, y, get_id)
+
+func create_array2d_data_by_func(x:int, y:int, get_int_func:Callable)->Array:
+	var result = []
+	
+	for _x in range(0, x):
+		result.append([])
+		for _y in range(0, y):
+			result[_x].append(get_int_func.call())
+	
+	return result
+
 func create_random_array2d_data(x:int, y:int,set)->Array:
 	var result = []
 	
@@ -316,6 +355,14 @@ func create_random_array2d_data(x:int, y:int,set)->Array:
 	
 	return result
 
+var id = 0
+
+func get_id():
+	id = id+1
+	if id > 999:
+		id = 0
+	return id
+	
 func create_array2d(x:int, y:int, value = 0):
 	var result = []
 	
@@ -334,8 +381,35 @@ func fill_array2d(result, x:int, y:int, value = 0):
 	
 	return result
 
-
-
+func to_fill_state_array(input, x:int, y:int):
+	var result = []
+	for _x in range(0, x):
+		result.append(input[_x].duplicate())
+	
+	
+	for _x in range(0, x):
+		for _y in range(y-1, -1, -1):
+			if result[_x][_y] == -1:
+				continue
+				
+			var swap_index = -1
+			for __y in range(_y + 1, y):
+				if result[_x][__y] == -1:
+					swap_index = __y
+				else:
+					break
+					
+			if _y != swap_index && swap_index != -1:
+				var temp = result[_x][_y]
+				result[_x][_y] = result[_x][swap_index]
+				result[_x][swap_index] = temp
+				# temp do it.[todo] change it better way
+				temp = data_array[_x][_y]
+				data_array[_x][_y] = data_array[_x][swap_index]
+				data_array[_x][swap_index] = temp
+								
+	return result
+	
 func random_2dintarray(array2d, x:int, y:int, set):
 	for _x in range(0, x):
 		for _y in range(0, y):
