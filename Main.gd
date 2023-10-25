@@ -25,11 +25,11 @@ enum e_move_axis{
 }
 
 enum e_state{
-	stable,
-	select,
-	erase,
-	fill,
-	none
+	stable = 0,
+	select = 1,
+	erase = 2,
+	fill = 3,
+	none = -1
 }
 
 var data_array
@@ -38,7 +38,7 @@ var match_data_array
 var cube_array
 var inited:bool =false
 
-var state = e_state.stable
+@export var state = e_state.stable
 var control_mode = e_control_mode.browse
 # control mode : browse
 var prev_selected
@@ -100,41 +100,60 @@ func _input(event):
 			update_cube_array_from_data(data_array, gridRangeX, gridRangeY, Vector2(0,0))
 
 func switch_state(new_state):
+	print("state:" + str(state) + " new_state:" + str(new_state))
+	
 	if state == new_state:
 		return
 	
 	if state == e_state.fill && new_state == e_state.select:
 		set_state(new_state)
 	
-	if state == e_state.stable && new_state == e_state.select:
+	elif state == e_state.stable && new_state == e_state.select:
 		set_state(new_state)
 	
-	if state == e_state.select && new_state == e_state.erase:
+	elif  state == e_state.select && new_state == e_state.erase:
 		set_state(new_state)
 	
-	if state == e_state.erase && new_state == e_state.fill:
-		set_state(new_state)	
+	elif state == e_state.erase && new_state == e_state.fill:
+		set_state(new_state)
+	
+	elif state == e_state.erase && new_state == e_state.stable:
+		set_state(new_state)
+	
+	elif state == e_state.select && new_state == e_state.stable:
+		set_state(new_state)
 
 
 func set_state(new_state):
-	match new_state:
+	print("set_state:" + str(new_state))
+	
+	state = new_state
+	
+	match state:
 		e_state.stable:
 			switch_control_mode(e_control_mode.browse)
 		e_state.select:
 			switch_control_mode(e_control_mode.selected)
 		e_state.erase:
 			switch_control_mode(e_control_mode.none)
+			
+			# TODO: check behavior here, it 
 			erase_all_matches(3, erase_duration, on_erase_matches_finished)
 			
 		e_state.fill:
 			switch_control_mode(e_control_mode.none)
 		e_state.none:
-			switch_control_mode(e_control_mode.none)
-	state = new_state
+			switch_control_mode(e_control_mode.none)	
 
-func on_erase_matches_finished():
+func on_erase_matches_finished(has_match:bool):
+	if not has_match:
+		switch_state(e_state.stable)
+		return
+		
 	print("on_erase finished")
 	var new_id_array = to_fill_state_array(id_array, get_range(gridRangeX), get_range(gridRangeY))
+	
+	#move down all cube 
 	for _x in range(0, get_range(gridRangeX)):
 		for _y in range(get_range(gridRangeY) -1, -1, -1):
 			if id_array[_x][_y] == -1:
@@ -144,11 +163,25 @@ func on_erase_matches_finished():
 					cube_array[_x][_y].move_to(
 						get_world_position(Vector2(_x, __y), Vector2(0,0))
 						, erase_duration)
-	# cube array not match state yet
-			
-			
+					cube_array[_x][__y] = cube_array[_x][_y]
+	id_array = new_id_array
+	
+	for _x in range(0, get_range(gridRangeX)):
+		var __y = -1
+		for _y in range(0, get_range(gridRangeY)):
+			if id_array[_x][_y] != -1:
+				__y = _y
+				break
+			id_array[_x][_y] = get_id()
+			data_array[_x][_y] = get_random_color()
+			cube_array[_x][_y] = create_cube(_x, -1-_y, Vector2(0,0))
+			cube_array[_x][_y].change_color_by_int(data_array[_x][_y])
+			cube_array[_x][_y].move_to(get_world_position(Vector2(_x, _y), Vector2(0,0))
+				, erase_duration)
+	
+	await erase_duration
+	erase_all_matches(3, erase_duration, on_erase_matches_finished)
 func switch_control_mode(new_mode):
-
 	if control_mode == new_mode:
 		return
 	
@@ -219,18 +252,22 @@ func erase_all_matches(num:int, duration:float, function:Callable)->bool:
 					match_data_array[_x][_y+i] = 1
 					has_match = true
 	
+	if not has_match:
+		function.call(false)
+		return false
+	
 	#destroy all matches
 	for _x in range(0, grid_length_x()):
 		for _y in range(0, grid_length_y()):
 			if match_data_array[_x][_y] == 1:
 				cube_array[_x][_y].erase(duration) #queue_free()
+				cube_array[_x][_y] = null
 				id_array[_x][_y] = -1
 	
-	if has_match: 
-		await duration
-		function.call()
+	await duration
+	function.call(true)
 	
-	return has_match
+	return true
 	
 func swap_data(n1, n2):
 	var temp = cube_array[n1.x][n1.y]
@@ -381,6 +418,8 @@ func fill_array2d(result, x:int, y:int, value = 0):
 	
 	return result
 
+# match data arary and return new id array
+# [TODO] maybe i should integrate id, cube, and data arary into one?
 func to_fill_state_array(input, x:int, y:int):
 	var result = []
 	for _x in range(0, x):
@@ -409,7 +448,8 @@ func to_fill_state_array(input, x:int, y:int):
 				data_array[_x][swap_index] = temp
 								
 	return result
-	
+
+
 func random_2dintarray(array2d, x:int, y:int, set):
 	for _x in range(0, x):
 		for _y in range(0, y):
@@ -454,6 +494,9 @@ func create_cube(x, y, init = Vector2.ZERO):
 	
 	return cube
 
+#[TODO] temp
+func get_random_color():
+	return get_random([1,2,4])
 
 func get_random(set:Array):
 	var index = randi() % set.size()

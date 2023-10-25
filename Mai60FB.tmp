@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://c38qbnt7re28i"]
+
+[ext_resource type="Script" path="res://Main.gd" id="1_gfcax"]
+[ext_resource type="PackedScene" uid="uid://yei67arj0s2m" path="res://Rect2D.tscn" id="1_th6vy"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_gfcax")
+unit = 130.0
+gridRangeX = Vector2(-2, 2)
+gridRangeY = Vector2(-4, 4)
+s_cube = ExtResource("1_th6vy")
+
+[node name="Camera2D" type="Camera2D" parent="."]
