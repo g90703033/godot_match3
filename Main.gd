@@ -166,21 +166,33 @@ func on_erase_matches_finished(has_match:bool):
 					cube_array[_x][__y] = cube_array[_x][_y]
 	id_array = new_id_array
 	
+	var offsetX = floor(get_range(gridRangeX)/2.0)
+	var offsetY = floor(get_range(gridRangeY)/2.0)
+	
 	for _x in range(0, get_range(gridRangeX)):
 		var __y = -1
+		var count = 0
 		for _y in range(0, get_range(gridRangeY)):
 			if id_array[_x][_y] != -1:
 				__y = _y
 				break
+			count += 1
+		
+		__y = -1
+		for _y in range(0, get_range(gridRangeY)):
+			if id_array[_x][_y] != -1:
+				__y = _y
+				break	
 			id_array[_x][_y] = get_id()
 			data_array[_x][_y] = get_random_color()
-			cube_array[_x][_y] = create_cube(_x, -1-_y, Vector2(0,0))
+			cube_array[_x][_y] = create_cube(_x - offsetX, -1-count+_y - offsetY, Vector2(0,0))
 			cube_array[_x][_y].change_color_by_int(data_array[_x][_y])
 			cube_array[_x][_y].move_to(get_world_position(Vector2(_x, _y), Vector2(0,0))
 				, erase_duration)
 	
 	await erase_duration
 	erase_all_matches(3, erase_duration, on_erase_matches_finished)
+
 func switch_control_mode(new_mode):
 	if control_mode == new_mode:
 		return
@@ -491,6 +503,7 @@ func create_cube(x, y, init = Vector2.ZERO):
 	cube.name = "name_"+str(x)+"_"+str(y)
 	add_child(cube)
 	cube.position = Vector2(x, y) * unit + init
+	print (cube.position)
 	
 	return cube
 
