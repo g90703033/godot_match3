@@ -190,7 +190,7 @@ func on_erase_matches_finished(has_match:bool):
 			cube_array[_x][_y].move_to(get_world_position(Vector2(_x, _y), Vector2(0,0))
 				, erase_duration)
 	
-	await erase_duration
+	await get_tree().create_timer(erase_duration).timeout
 	erase_all_matches(3, erase_duration, on_erase_matches_finished)
 
 func switch_control_mode(new_mode):
@@ -236,6 +236,7 @@ func switch_control_mode(new_mode):
 
 func erase_all_matches(num:int, duration:float, function:Callable)->bool:
 	var has_match:bool = false
+	print("- erease call ")
 	
 	fill_array2d(match_data_array, grid_length_x(), grid_length_y())
 	
@@ -276,7 +277,7 @@ func erase_all_matches(num:int, duration:float, function:Callable)->bool:
 				cube_array[_x][_y] = null
 				id_array[_x][_y] = -1
 	
-	await duration
+	await get_tree().create_timer(duration).timeout
 	function.call(true)
 	
 	return true
